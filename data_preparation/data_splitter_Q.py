@@ -1,6 +1,7 @@
 #%%
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import os
 import glob
 import cv2
@@ -8,11 +9,14 @@ from tqdm import tqdm
 import random
 import argparse
 from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold, KFold
-
-ROOT = '/home/wonjun/repos/DISTL'
+#%%
+ROOT = '/root/repos/DISTL'
+current_directory = Path(__file__).parent.absolute()
 seed = 2228
 #%%
-mimic_path = '/media/wonjun/HDD8TB/MIMIC-CXR-JPG-Resized512'
+# mimic_path = '/media/wonjun/HDD8TB/MIMIC-CXR-JPG-Resized512'
+mimic_path = '/mnt/e/data/MIMIC-CXR-JPG-mini'
+#%%'
 metadata_path = os.path.join(mimic_path, 'mimic-cxr-2.0.0-metadata.csv')
 mimic_split_path = os.path.join(mimic_path, 'mimic-cxr-2.0.0-split.csv')
 negbio_labels_path = os.path.join(mimic_path, 'mimic-cxr-2.0.0-negbio.csv')
@@ -49,14 +53,12 @@ for fold0_indices, fold1_indices in pretrain_split.split(df, df[lesion]):
     distl_set = df.iloc[fold0_indices]
 
 # %% Split the DISTL set into three folds
+folds = {}
 kfold_split = StratifiedKFold(n_splits=3, shuffle=True, random_state=seed)
-for train_idx, test_idx in kfold_split.split(distl_set, distl_set[lesion]):
-    print(len(train_idx), len(test_idx))
-# %%
-distl_set[lesion].value_counts()
+for i, (_, fold_indices) in enumerate(kfold_split.split(distl_set, distl_set[lesion])):
+    folds[f"fold{i}"] = distl_set.iloc[fold_indices]
+
 #%%
-len(distl_set)
-#%%
-142776+71389+142777+71388+142777+71388
-#%%
-71389+71388+71388
+pretrain_set.to_csv(os.path.join(current_directory, f"mimic_{lesion.replace(' ','')}_pretrain.csv"))
+for fold_name, fold_df in folds.items():
+    fold_df.to_csv(os.path.join(current_directory, f"mimic_{lesion.replace(' ','')}_{fold_name}.csv"))
