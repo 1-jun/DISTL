@@ -64,6 +64,20 @@ class Attention(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
+    # def forward(self, x):
+    #     B, N, C = x.shape
+    #     qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+    #     q, k, v = qkv[0], qkv[1], qkv[2]
+
+    #     attn = (q @ k.transpose(-2, -1)) * self.scale
+    #     attn = attn.softmax(dim=-1)
+    #     attn = self.attn_drop(attn)
+        
+    #     x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+    #     x = self.proj(x)
+    #     x = self.proj_drop(x)
+    #     return x, attn
+    
     def forward(self, x):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
@@ -72,8 +86,12 @@ class Attention(nn.Module):
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
-
-        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        
+        context_layer = attn @ v
+        self.context_layer_val = context_layer
+        if self.context_layer_val.requires_grad==True:
+            self.context_layer_val.retain_grad()
+        x = context_layer.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x, attn
@@ -215,6 +233,18 @@ class VisionTransformer(nn.Module):
             else:
                 # return attention of the last block
                 return blk(x, return_attention=True)
+    
+    def get_layer_selfattention(self, x, layer_index):
+        if layer_index < 0:
+            layer_index = len(self.blocks) + layer_index
+        
+        x = self.prepare_tokens(x)
+        for i, blk in enumerate(self.blocks):
+            if i < layer_index:
+                x = blk(x)
+            else:
+                return blk(x, return_attention=True)
+        return None
 
     def get_intermediate_layers(self, x, n=1):
         x = self.prepare_tokens(x)
@@ -297,9 +327,27 @@ class CLS_head(nn.Module):
         super().__init__()
         self.mlp = nn.Sequential(nn.Linear(in_dim, hidden_dim),
                                  nn.ReLU(),
-                                 nn.Linear(hidden_dim, hidden_dim),
-                                 nn.ReLU(),
                                  nn.Linear(hidden_dim, num_class))
     def forward(self, x):
         x = self.mlp(x)
         return x
+    
+class CLSHead(nn.Module):
+    def __init__(self, in_dim, hidden_dim, num_classes):
+        super().__init__()
+        def create_mlp():
+            return nn.Sequential(
+                nn.Linear(in_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, 1)
+            )
+        
+        self.mlps = nn.ModuleList([create_mlp() for _ in range(num_classes)])
+        
+    def forward(self, x):
+        outputs = []
+        for mlp in self.mlps:
+            out = mlp(x)
+            outputs.append(out)
+            
+        return outputs

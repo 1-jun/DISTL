@@ -9,13 +9,15 @@ from tqdm import tqdm
 import random
 import argparse
 from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold, KFold
+
+
 #%%
-ROOT = '/root/repos/DISTL'
+ROOT = '/home/wonjun/repos/DISTL'
 current_directory = Path(__file__).parent.absolute()
 seed = 2228
 #%%
-# mimic_path = '/media/wonjun/HDD8TB/MIMIC-CXR-JPG-Resized512'
-mimic_path = '/mnt/e/data/MIMIC-CXR-JPG-mini'
+mimic_path = '/media/wonjun/HDD8TB/MIMIC-CXR-JPG-Resized512'
+# mimic_path = '/mnt/e/data/MIMIC-CXR-JPG-mini'
 #%%'
 metadata_path = os.path.join(mimic_path, 'mimic-cxr-2.0.0-metadata.csv')
 mimic_split_path = os.path.join(mimic_path, 'mimic-cxr-2.0.0-split.csv')
@@ -26,7 +28,8 @@ negbio_labels = pd.read_csv(negbio_labels_path)
 negbio_labels = negbio_labels.fillna(0.0)
 # negbio_labels = negbio_labels.replace(-1.0, 0.0) # -1.0 is for ambiguous menitoning of the lesion in the report
 
-lesion = 'Pleural Effusion'
+#%%
+lesion = 'Lung Lesion'
 
 #%%
 mimic_trainset_df = mimic_split[mimic_split['split']=='train']
@@ -45,6 +48,8 @@ df = df[df['ViewPosition'].isin(['PA', 'AP'])]
 df = pd.merge(df, negbio_labels[['subject_id', 'study_id', lesion]],
               on=['subject_id', 'study_id'], how='left')
 df = df.dropna()
+df = df[df[lesion] != -1] # -1 is for ambiguous mentions in the report; we'll just skip these for now
+
 
 #%% Split into pretraining set and DISTL-training set
 pretrain_split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=seed)
@@ -56,9 +61,10 @@ for fold0_indices, fold1_indices in pretrain_split.split(df, df[lesion]):
 folds = {}
 kfold_split = StratifiedKFold(n_splits=3, shuffle=True, random_state=seed)
 for i, (_, fold_indices) in enumerate(kfold_split.split(distl_set, distl_set[lesion])):
-    folds[f"fold{i}"] = distl_set.iloc[fold_indices]
+    folds[f"fold_{i}"] = distl_set.iloc[fold_indices]
 
 #%%
-pretrain_set.to_csv(os.path.join(current_directory, f"mimic_{lesion.replace(' ','')}_pretrain.csv"))
+pretrain_set.to_csv(os.path.join(current_directory, f"mimic_{lesion.replace(' ','')}_labeled.csv"))
 for fold_name, fold_df in folds.items():
     fold_df.to_csv(os.path.join(current_directory, f"mimic_{lesion.replace(' ','')}_{fold_name}.csv"))
+# %%

@@ -575,27 +575,16 @@ class MultiCropWrapper(nn.Module):
     concatenate all the output features and run the head forward on these
     concatenated features.
     """
-    def __init__(self, backbone, head, cls_head, args):
+    def __init__(self, backbone, head, cls_head):
         super(MultiCropWrapper, self).__init__()
         # disable layers dedicated to ImageNet labels classification
         # backbone.fc, backbone.head = nn.Identity(), nn.Identity()
         # self.backbone = backbone
         self.head = head
         self.cls_head = cls_head
-        self.args = args
 
-        if 'densenet' in self.args.arch:
-            backbone.classifier = nn.Identity()
-            self.backbone = backbone
-        elif 'resne' in self.args.arch:
-            backbone.fc = nn.Identity()
-            self.backbone = backbone
-        elif 'eff' in self.args.arch:
-            backbone.classifier = nn.Identity()
-            self.backbone = backbone
-        else:
-            backbone.fc, backbone.head = nn.Identity(), nn.Identity()
-            self.backbone = backbone
+        backbone.fc, backbone.head = nn.Identity(), nn.Identity()
+        self.backbone = backbone
 
     def forward(self, x):
         # convert to list
@@ -614,10 +603,7 @@ class MultiCropWrapper(nn.Module):
 
         start_idx, output = 0, torch.empty(0).to(x[0].device)
         for end_idx in idx_crops:
-            if 'deit' in self.args.arch:
-                _out = self.backbone.forward_features(torch.cat(x[start_idx: end_idx]))
-            else:
-                _out = self.backbone(torch.cat(x[start_idx: end_idx]))
+            _out = self.backbone(torch.cat(x[start_idx: end_idx]))
             # The output is a tuple with XCiT model. See:
             # https://github.com/facebookresearch/xcit/blob/master/xcit.py#L404-L405
             if isinstance(_out, tuple):

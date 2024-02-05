@@ -399,7 +399,7 @@ class DataAugmentationDINO(object):
 if __name__ == '__main__':
     parser = main_run.get_args_parser()
     args = parser.parse_args()
-    args.option_dir = './'
+    args.option_dir = 'runs_arguments'
     os.makedirs(args.option_dir, exist_ok=True)
     with open(os.path.join(args.option_dir, args.name + '_argv.csv'), 'w', newline='') as f:
         writer = csv.writer(f)

@@ -375,6 +375,7 @@ def train_dino(args):
 def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, bce_loss, data_loader, l_data_loader,
                     optimizer, lr_schedule, wd_schedule, momentum_schedule, epoch, ssl_epoch,
                     fp16_scaler, args):
+    import ipdb; ipdb.set_trace()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
     for it, (images, _) in enumerate(metric_logger.log_every(data_loader, 10, header)):
@@ -437,7 +438,7 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, bce_loss, 
             for param_q, param_k in zip(student.module.parameters(), teacher_without_ddp.parameters()):
                 param_k.data.mul_(m).add_((1 - m) * param_q.detach().data)
 
-
+        import ipdb; ipdb.set_trace()
         if it % args.correct == 0:
             print("============ Correction with labeled data ... ============")
             # ====================== Correction with labeled data ===============================
