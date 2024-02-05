@@ -2,3 +2,7 @@ outputs/*
 logs/*
 wandb/*
 *_argv.csv
+*.png
+*.ckpt
+*.pt
+*.pth
