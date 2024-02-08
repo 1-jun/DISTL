@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from torchvision import transforms
 from torchvision import models as torchvision_models
 
-import wandb
+# import wandb
 
 import utils
 import vision_transformer as vit_o
@@ -31,7 +31,7 @@ torchvision_archs = sorted(name for name in torchvision_models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(torchvision_models.__dict__[name]))
 
-wandb.init()
+# wandb.init()
 
 def get_args_parser():
     parser = argparse.ArgumentParser('DINO', add_help=False)

@@ -1,6 +1,7 @@
 outputs/*
 logs/*
 wandb/*
+*.csv
 *_argv.csv
 *.png
 *.ckpt

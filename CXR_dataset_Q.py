@@ -109,11 +109,11 @@ class MIMIC_Multilabel_Dataset(torch.utils.data.Dataset):
         dfs = []
         if self.mode == 'train':
             if self.labeled:
-                df_path = os.path.join(data_path, f"mimic_multilabel_labeled.csv")
+                df_path = os.path.join(data_path, f"labeled.csv")
                 dfs.append(pd.read_csv(df_path))
             elif not self.labeled:
                 for fold in self.folds:
-                    df_path = os.path.join(data_path, f"mimic_multilabel_{fold}.csv")
+                    df_path = os.path.join(data_path, f"{fold}.csv")
                     dfs.append(pd.read_csv(df_path))
         self.df = pd.concat(dfs, axis=0)
 

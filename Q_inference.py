@@ -1,5 +1,5 @@
 #%%
-import os; os.environ['CUDA_VISIBLE_DEVICES']='3'
+import os#; os.environ['CUDA_VISIBLE_DEVICES']='3'
 import argparse
 import cv2
 import random
@@ -50,7 +50,7 @@ import sklearn.metrics
 # display(df)
 
 #%% Load MIMIC val set
-mimic_path = Path('/home/wonjun/data/mimic-cxr-jpg-resized512')
+mimic_path = Path('/media/wonjun/HDD8TB/mimic-cxr-jpg-resized512')
 
 metadata_path = os.path.join(mimic_path, 'mimic-cxr-2.0.0-metadata.csv')
 mimic_split_path = os.path.join(mimic_path, 'mimic-cxr-2.0.0-split.csv')
@@ -77,10 +77,10 @@ labels = ['Atelectasis',
 label_to_ind = {l:i for i,l in enumerate(labels)}
 ind_to_label = {i:l for i,l in enumerate(labels)}
 
-mimic_valset_df = mimic_split[mimic_split['split']=='validate']
+test_df = mimic_split[mimic_split['split']=='train']
 
 # Use only frontal view CXRs (ie, ViewPosition is PA or AP)
-df = pd.merge(mimic_valset_df,
+df = pd.merge(test_df,
               metadata[['dicom_id', 'ViewPosition', 'StudyDate', 'StudyTime']],
               on='dicom_id', how='inner')
 df = df[df['ViewPosition'].isin(['PA', 'AP'])]
@@ -119,7 +119,7 @@ def load_img(img_path, img_size=(224,224), patch_size=8):
 
 #%%
 # PRETRAINED_WEIGHTS = 'outputs/mimic-split-10-30-30-30/mimic_multilabel_fold2/checkpoint.pth'
-PRETRAINED_WEIGHTS = 'outputs/mimic_multilabel_all_pretrain/checkpoint.pth'
+PRETRAINED_WEIGHTS = 'outputs/mimic_multilabel_all_mainrun/checkpoint.pth'
 CHECKPOINT_KEY = 'student'
 PATCH_SIZE, OUT_DIM, NUM_CLASSES = 8, 65536, len(labels)
 
@@ -232,21 +232,3 @@ tn, fp, fn, tp = sklearn.metrics.confusion_matrix(y_true, y_pred).ravel()
 print(tn, fp, fn, tp)
 
 #%%
-Res_0 = torch.Tensor(
-    [[[
-        [1,1],
-        [0,1]
-    ]]]
-)
-Res_1 = torch.Tensor(
-    [[[
-        [0,0],
-        [1,0]
-    ]]]
-)
-#%%
-output = torch.cat((Res_0, Res_1), 1)
-output[0].data
-
-#%%
-torch.max(output[0].data, 0)
