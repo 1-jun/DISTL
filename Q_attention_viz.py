@@ -1,4 +1,4 @@
-    #%%
+#%%
 import os
 import argparse
 import cv2
@@ -52,7 +52,7 @@ def load_sample_imgs(img_paths, img_size=(256,256), patch_size=8):
 
 #%%
 @torch.no_grad()
-def save_attention_maps(model: utils.MultiCropWrapper,
+def get_attention_maps(model: utils.MultiCropWrapper,
                         img_paths,
                         save_dir,
                         iter):
@@ -74,47 +74,49 @@ def save_attention_maps(model: utils.MultiCropWrapper,
     attentions = attentions.reshape(n_imgs, nh, w_featmap, h_featmap)
     attentions = attentions.detach().cpu().numpy()
     
-    for img_path, attention_map in zip(img_paths, attentions):
-        img_name = img_path.split('/')[-1].split('.')[0]
-        np.save(os.path.join(save_dir, img_name+f"_{iter}"), attention_map)
+    # for img_path, attention_map in zip(img_paths, attentions):
+    #     img_name = img_path.split('/')[-1].split('.')[0]
+    #     np.save(os.path.join(save_dir, img_name+f"_{iter}"), attention_map)
     
     return attentions
 
 # %%
-# PRETRAINED_WEIGHTS = 'outputs/useall-100-100/fold0/checkpoint.pth'
-# # PRETRAINED_WEIGHTS = 'outputs/split-10-30-30-30/voc_fold2/checkpoint.pth'
-# CHECKPOINT_KEY = 'student'
-# patch_size, out_dim, n_classes = 8, 65536, 20
-# model = vit_o.__dict__['vit_small'](patch_size=patch_size)
-# embed_dim = model.embed_dim
-# model = utils.MultiCropWrapper(
-#     model,
-#     vit_o.DINOHead(in_dim=embed_dim, out_dim=out_dim),
-#     vit_o.CLSHead(in_dim=384, hidden_dim=256, num_classes=n_classes)
-# )
+PRETRAINED_WEIGHTS = 'outputs/mimic_5labels/fold2/checkpoint.pth'
+# PRETRAINED_WEIGHTS = 'outputs/split-10-30-30-30/voc_fold2/checkpoint.pth'
+CHECKPOINT_KEY = 'student'
+patch_size, out_dim, n_classes = 8, 65536, 20
+model = vit_o.__dict__['vit_small'](patch_size=patch_size)
+embed_dim = model.embed_dim
+model = utils.MultiCropWrapper(
+    model,
+    vit_o.DINOHead(in_dim=embed_dim, out_dim=out_dim),
+    vit_o.CLSHead(in_dim=384, hidden_dim=256, num_classes=n_classes)
+)
 
-# sd = torch.load(PRETRAINED_WEIGHTS, map_location='cpu')
-# sd = sd[CHECKPOINT_KEY]
-# sd = {k.replace("module.", ""): v for k, v in sd.items()}
+sd = torch.load(PRETRAINED_WEIGHTS, map_location='cpu')
+sd = sd[CHECKPOINT_KEY]
+sd = {k.replace("module.", ""): v for k, v in sd.items()}
 
-# msg = model.load_state_dict(sd)
-# print(msg)
-# model = model.to('cuda')
+msg = model.load_state_dict(sd)
+print(msg)
+model = model.to('cuda')
 
-# voc_imgs_root = '/media/wonjun/HDD8TB/voc12/VOCdevkit/VOC2012/JPEGImages'
-# img_paths = [
-#     os.path.join(voc_imgs_root, '2007_000063.jpg'),
-#     os.path.join(voc_imgs_root, '2007_000129.jpg'),
-#     os.path.join(voc_imgs_root, '2007_000799.jpg'),
-#     os.path.join(voc_imgs_root, '2007_000925.jpg'),
-#     os.path.join(voc_imgs_root, '2007_001678.jpg')
-# ]
 
-# attentions = save_attention_maps(model, img_paths)
+#%%
+voc_imgs_root = '/media/wonjun/HDD8TB/voc12/VOCdevkit/VOC2012/JPEGImages'
+img_paths = [
+    os.path.join(voc_imgs_root, '2007_000063.jpg'),
+    os.path.join(voc_imgs_root, '2007_000129.jpg'),
+    os.path.join(voc_imgs_root, '2007_000799.jpg'),
+    os.path.join(voc_imgs_root, '2007_000925.jpg'),
+    os.path.join(voc_imgs_root, '2007_001678.jpg')
+]
 
-# for attn_map in attentions:
-#     fig, ax = plt.subplots(2, 3, figsize=(9, 6))
-#     for i, map in enumerate(attn_map):
-#         ax[i//3, i%3].imshow(map)
-#     plt.show()
+attentions = get_attention_maps(model, img_paths)
+
+for attn_map in attentions:
+    fig, ax = plt.subplots(2, 3, figsize=(9, 6))
+    for i, map in enumerate(attn_map):
+        ax[i//3, i%3].imshow(map)
+    plt.show()
 # %%

@@ -94,7 +94,7 @@ df = df[df['ViewPosition'].isin(['PA', 'AP'])]
 df = pd.merge(df, negbio_labels[['subject_id', 'study_id']+labels],
               on=['subject_id', 'study_id'], how='left')
 df = df.dropna()
-display(df)
+# display(df)
 
 #%%
 def load_img(img_path, img_size=(224,224), patch_size=8):
@@ -142,6 +142,8 @@ state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 msg = model.load_state_dict(state_dict, strict=True)
 pprint('Pretrained weights found at {} and loaded with msg: {}'.format(PRETRAINED_WEIGHTS, msg))
 
+#%%
+df
 
 #%%
 print(f"Results for {PRETRAINED_WEIGHTS}")
@@ -214,21 +216,5 @@ results_df = pd.DataFrame(results).round(4)
 results_df.index = labels + [""]
 display(results_df)
 
-# %%
-y_true = np.array([[0,1,1],
-                    [1,0,1]])
-y_pred = np.array([[0,1,1],
-                    [1,1,1]])
-
-indices_to_skip = [(1,1)]
-mask = np.ones_like(y_true, dtype=bool)
-for i,j in indices_to_skip:
-    mask[i,j] = False
-
-y_true = y_true[mask]
-y_pred = y_pred[mask]
-
-tn, fp, fn, tp = sklearn.metrics.confusion_matrix(y_true, y_pred).ravel()
-print(tn, fp, fn, tp)
 
 #%%

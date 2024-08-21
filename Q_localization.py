@@ -1,9 +1,10 @@
 #%%
 import os#; os.environ['CUDA_VISIBLE_DEVICES']='2'
-import argparse
+import json
 import cv2
 import random
 import colorsys
+import argparse
 import pandas as pd
 from tqdm import tqdm
 from pprint import pprint
@@ -105,13 +106,13 @@ def get_layer_selfattention(model: utils.MultiCropWrapper,
         attentions.unsqueeze(0), scale_factor=patch_size, mode='nearest'
     )[0].cpu().numpy()
     
-    im = np.transpose(img[0].detach().cpu().numpy(), (1,2,0))
-    fig, ax = plt.subplots(2,3, figsize=(9,6))
-    for j in range(nh):
-        ax[j//3, j%3].imshow(im, alpha=0.5)
-        ax[j//3, j%3].imshow(attentions[j], alpha=0.5)
-    fig.suptitle(f"attention maps for layer {layer_index}")
-    plt.show()
+    # im = np.transpose(img[0].detach().cpu().numpy(), (1,2,0))
+    # fig, ax = plt.subplots(2,3, figsize=(9,6))
+    # for j in range(nh):
+    #     ax[j//3, j%3].imshow(im, alpha=0.5)
+    #     ax[j//3, j%3].imshow(attentions[j], alpha=0.5)
+    # fig.suptitle(f"attention maps for layer {layer_index}")
+    # plt.show()
     
     return attentions
 
@@ -149,7 +150,7 @@ def get_head_importance(classes_of_interest: list,
                         img):
     
     head_importance_by_class = {}
-    fig, ax = plt.subplots(1, len(classes_of_interest), figsize=(5*len(classes_of_interest), 5))
+    # fig, ax = plt.subplots(1, len(classes_of_interest), figsize=(5*len(classes_of_interest), 5))
     if len(classes_of_interest)==1: ax=[ax]
 
     for i, _class in enumerate(classes_of_interest):
@@ -171,8 +172,8 @@ def get_head_importance(classes_of_interest: list,
         head_importance /= norm_by_layer.unsqueeze(-1) + 1e-20
         
         head_importance = head_importance.detach().cpu().numpy().astype(np.float32)
-        ax[i].imshow(head_importance, cmap='plasma')
-        ax[i].set_title(_class)
+        # ax[i].imshow(head_importance, cmap='plasma')
+        # ax[i].set_title(_class)
         
         head_importance_by_class[_class] = head_importance
 
@@ -206,8 +207,53 @@ def load_model(ckpt_path):
     model = model.to('cuda')
     return model
 
+def save_attention_map(model, row, output_folder):
+    """
+    Save attention map for a single image
+    
+    row: pd.Series
+        a row from one of the DataFrames in data_preparation folder
 
-#%% Load an image
+    """
+    img_path = os.path.join(args.mimic_root, 'files',
+                            f"p{str(int(row['subject_id']))[:2]}",
+                            f"p{str(int(row['subject_id']))}",
+                            f"s{str(int(row['study_id']))}",
+                            row['dicom_id']+'.jpg')
+
+    img, w_featmap, h_featmap = load_img(
+        img_path=img_path, img_size=(256,256)
+    )
+    img = img.to('cuda')
+    
+    last_layer_attentions = get_layer_selfattention(model, img, w_featmap=w_featmap, h_featmap=h_featmap, layer_index=-1)
+    
+    pred = model(img)
+    pred = np.array([t.detach().cpu().numpy()[0][0] for t in pred])
+    predicted_classes = np.argsort(pred)[::-1] # list items in order of decreasing value
+    predicted_classes = [ind for ind in predicted_classes if ind in np.where(pred>=0)[0]]
+    predicted_classes = [IND_TO_LABEL[ind] for ind in predicted_classes]
+    
+    if len(predicted_classes) > 0:
+        head_importance_by_class = get_head_importance(predicted_classes, model, img)
+  
+    best_head_ind_for_each_class = {}
+    for k, v in head_importance_by_class.items():
+        last_layer_best_head_ind = np.argmax(v[-1])
+        best_head_ind_for_each_class[k] = int(last_layer_best_head_ind)
+    
+    save_dir = os.path.join(output_folder,
+                             f"p{str(int(row['subject_id']))[:2]}",
+                             f"p{str(int(row['subject_id']))}",
+                             f"s{str(int(row['study_id']))}")
+    os.makedirs(save_dir, exist_ok=True)
+    json_path = os.path.join(save_dir, row['dicom_id']+'_best_head_indices.json')
+    with open(json_path, 'w') as handle:
+        json.dump(best_head_ind_for_each_class, handle, indent=2)
+    attn_path = os.path.join(save_dir, row['dicom_id']+'.npy')
+    np.save(attn_path, last_layer_attentions)    
+
+#%% Save attention maps
 def main(args):
     model = load_model(args.ckpt_path)
     
@@ -251,128 +297,15 @@ def main(args):
                                                    model,
                                                    img)
 
-    _ = get_layer_selfattention(model, img, w_featmap=w_featmap, h_featmap=h_featmap, layer_index=-1)
-    # _ = get_layer_selfattention(model, img, w_featmap=w_featmap, h_featmap=h_featmap, layer_index=-2)
-
-
-    # for _cls, head_importance in head_importance_by_class.items():
-    #     print(f"Most important attention head for class {_cls.upper()}")
-        
-    #     # most important head in a certain layer
-    #     layer_ind = -1
-    #     best_head_ind = np.argmax(head_importance[layer_ind])
-    #     attn_map = get_head_selfattention(model, img, layer_ind, best_head_ind)
-
-    #     attn_map_q25 = (attn_map > np.percentile(attn_map, 25)).astype(np.uint8)
-    #     attn_map_q50 = (attn_map > np.percentile(attn_map, 50)).astype(np.uint8)
-    #     attn_map_q75 = (attn_map > np.percentile(attn_map, 75)).astype(np.uint8)
-    #     attn_map_q95 = (attn_map > np.percentile(attn_map, 95)).astype(np.uint8)
-    #     attn_map_q98 = (attn_map > np.percentile(attn_map, 98)).astype(np.uint8)
-
-    #     fig, ax = plt.subplots(1,6, figsize=(24, 4))
-    #     ax[0].imshow(attn_map, cmap='plasma')
-    #     ax[1].imshow(attn_map_q25, cmap='plasma')
-    #     ax[2].imshow(attn_map_q50, cmap='plasma')
-    #     ax[3].imshow(attn_map_q75, cmap='plasma')
-    #     ax[4].imshow(attn_map_q95, cmap='plasma')
-    #     ax[5].imshow(attn_map_q98, cmap='plasma')
-    #     plt.show()
-
-#%%
-args = parse_args()
-model = load_model(args.ckpt_path)
-
-# =========== Load an image ==========
-df = pd.read_csv(args.data_df_path)    
-df = df[df[args.label_of_interest]==1] # DataFrame with entries positive for label_of_interest
-#%%
-# ind = random.randint(0, len(df)) # pick a row at random
-ind = 12
-row = df.iloc[ind]
-true_classes = list(row.index[row==1])
-img_path = os.path.join(args.mimic_root, 'files',
-                        f"p{str(int(row['subject_id']))[:2]}",
-                        f"p{str(int(row['subject_id']))}",
-                        f"s{str(int(row['study_id']))}",
-                        row['dicom_id']+'.jpg')
-
-img, w_featmap, h_featmap = load_img(
-    img_path=img_path, img_size=(256,256)
-)
-
-img = img.to('cuda')
-print(row)
-print()
-
-# =========== Get model preds ============
-pred = model(img)
-pred = np.array([t.detach().cpu().numpy()[0][0] for t in pred])
-
-predicted_classes = np.argsort(pred)[::-1] # list items in order of decreasing value
-predicted_classes = [ind for ind in predicted_classes if ind in np.where(pred>=0)[0]]
-predicted_logits = [pred[i] for i in predicted_classes]
-predicted_classes = [IND_TO_LABEL[ind] for ind in predicted_classes]
-print("Predicted classes: ")
-print(predicted_classes)
-print(predicted_logits)
-print()
-
-print("True classes: ")
-print(true_classes)
-print()
-
-# correctly_predicted_classes = [c for c in predicted_classes if c in true_classes]
-# print("Correctly predicted: ")
-# print(correctly_predicted_classes)
-
-if len(predicted_classes) > 0:
-    head_importance_by_class = get_head_importance(predicted_classes, model, img)
-
-_img = np.transpose(img[0].detach().cpu().numpy(), (1,2,0))
-fig, ax = plt.subplots(1,1,figsize=(5,5))
-ax.imshow(_img)
-
-attentions = get_layer_selfattention(model, img, w_featmap=w_featmap, h_featmap=h_featmap, layer_index=-1)
-# _ = get_layer_selfattention(model, img, w_featmap=w_featmap, h_featmap=h_featmap, layer_index=-2)
-nh = attentions.shape[0]
-fig, ax = plt.subplots(2,3, figsize=(9,6))
-for j in range(nh):
-    mask = attentions[j] > np.percentile(attentions[j], 90)
-    ax[j//3, j%3].imshow(_img, alpha=0.5)
-    ax[j//3, j%3].imshow(mask, alpha=0.5)
-plt.show()
-
-
-#%%
-best_head_ind_for_each_class = {}
-for k, v in head_importance_by_class.items():
-    best_head_ind = np.argmax(v[-1])
-    best_head_ind_for_each_class[k] = best_head_ind
-
-best_head_ind_for_each_class
-
-#%%
-def save_attention_map(model, row):
-    """
-    Save attention map for a single image
+    attentions = get_layer_selfattention(model, img, w_featmap=w_featmap, h_featmap=h_featmap, layer_index=-1)
     
-    row: pd.Series
-        a row from one of the DataFrames in data_preparation folder
-
-    """
-
-#%%
-args.data_df_path
-#%%
-layer_ind = -1
-best_head_ind = np.argmax(head_importance_by_class['Pleural Effusion'][layer_ind])
-best_head_ind
-#%%
-attentions[best_head_ind].shape
-fig, ax = plt.subplots(1,1, figsize=(4,4))
-ax.imshow(attentions[best_head_ind])
-
-
+    im = np.transpose(img[0].detach().cpu().numpy(), (1,2,0))
+    fig, ax = plt.subplots(2,3, figsize=(9,6))
+    for j in range(6):
+        ax[j//3, j%3].imshow(im, alpha=0.5)
+        ax[j//3, j%3].imshow(attentions[j], alpha=0.5)
+    # fig.suptitle(f"attention maps for layer {layer_index}")
+    plt.show()
 
 
 #%%
