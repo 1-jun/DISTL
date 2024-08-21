@@ -42,16 +42,17 @@ def get_args_parser():
                                 'Cardiomegaly',
                                 'Consolidation',
                                 'Edema',
-                                'Enlarged Cardiomediastinum',
-                                'Fracture',
-                                'Lung Lesion',
-                                'Lung Opacity',
-                                'No Finding',
+                                # 'Enlarged Cardiomediastinum',
+                                # 'Fracture',
+                                # 'Lung Lesion',
+                                # 'Lung Opacity',
+                                # 'No Finding',
                                 'Pleural Effusion',
-                                'Pleural Other',
-                                'Pneumonia',
-                                'Pneumothorax',
-                                'Support Devices')
+                                # 'Pleural Other',
+                                # 'Pneumonia',
+                                # 'Pneumothorax',
+                                # 'Support Devices'
+                                )
                         )
     
     parser.add_argument('--use_original', default=True, type=bool,
@@ -385,6 +386,7 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, bce_loss, 
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
     for it, (images, labels) in enumerate(metric_logger.log_every(data_loader, 10, header)):
+        import ipdb; ipdb.set_trace()
         # update weight decay and learning rate according to their schedule
         it = len(data_loader) * epoch + it  # global training iteration
         for i, param_group in enumerate(optimizer.param_groups):

@@ -1,0 +1,44 @@
+name,MIMIC_LASTLAYERONLY
+data_path,data_preparation/mimic_multilabel_all.csv
+mimic_path,/home/wonjun/data/mimic-cxr-jpg-resized512
+lesions,"('Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Enlarged Cardiomediastinum', 'Fracture', 'Lung Lesion', 'Lung Opacity', 'No Finding', 'Pleural Effusion', 'Pleural Other', 'Pneumonia', 'Pneumothorax', 'Support Devices')"
+use_original,True
+fine_tune,False
+arch,vit_small
+patch_size,8
+out_dim,65536
+norm_last_layer,True
+momentum_teacher,0.9995
+use_bn_in_head,False
+warmup_teacher_temp,0.04
+teacher_temp,0.04
+warmup_teacher_temp_epochs,0
+use_fp16,True
+weight_decay,0.01
+weight_decay_end,0.01
+clip_grad,3.0
+batch_size_per_gpu,10
+epochs,5
+ssl_epoch,5
+freeze_last_layer,1
+lr,5e-05
+warmup_epochs,1
+min_lr,1e-06
+optimizer,adamw
+drop_path_rate,0.1
+global_crops_scale,"(0.75, 1.0)"
+local_crops_number,8
+local_crops_scale,"(0.2, 0.6)"
+output_dir,outputs/mimic_lastlayeronly
+saveckp_freq,5
+seed,0
+num_workers,8
+dist_url,env://
+local_rank,0
+total_folds,0
+pretrained_dir,pretrained_weights/pretrain.ckpt
+checkpoint_key,each
+lam,0.5
+correct,1000
+alpha,True
+option_dir,runs_arguments

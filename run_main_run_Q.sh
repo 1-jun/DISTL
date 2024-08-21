@@ -1,5 +1,6 @@
 CUDA_VISIBLE_DEVICES=2,3 \
-python -m torch.distributed.launch --nproc_per_node=2 main_run_Q_multilabel.py \
+python -m torch.distributed.launch \
+    --nproc_per_node=2 main_run_Q_multilabel.py \
     --name MIMIC_MULTILABEL_FOLD2 \
     --data_path data_preparation \
     --batch_size_per_gpu 10 \
